@@ -63,7 +63,42 @@ In this lab, at the beginning of the year, we always setup our lab environments,
 * Put in the password, go through the installation process, and reboot
 * "whoami" should come up as ben\administarator
 
-## MGMT
+## MGMT-01
+
+### Networking
+* Open SConfig from CLI as Admin to make changes
+* IP Address - 10.0.5.10
+* Gateway - 10.0.5.2
+* Subnet - 255.255.255.0
+* DNS(NEW) - 10.0.5.5
+* Hostname - mgmt01-Ben
+* Join the domain (either on SConfig or Server Manager)
+
+<img width="654" height="692" alt="image" src="https://github.com/user-attachments/assets/bb70d982-0d78-4190-839e-38a9b2928e62" />
+
+### Installation/Management
+* After reeboot relogin as the domain, not local
+* Go to Manage -> Add Roles and Features and install the following
+<img width="300" height="364" alt="image" src="https://github.com/user-attachments/assets/908f61c9-cfeb-44c0-80a8-626f8eba2a31" />
+
+* Now we go to Manage -> Add servers and ad our AD01 server
+<img width="1492" height="608" alt="image" src="https://github.com/user-attachments/assets/2c4f8e52-c9bd-4782-8c5f-702c306cd39a" />
+
+* Now we are creating two users (Ben Deyot(ben.deyot) and Benjamin Deyot(ben.deyot-adm))
+* Add ben.deyot-adm to the "Domain Admin" Group
+<img width="958" height="170" alt="image" src="https://github.com/user-attachments/assets/d55e0b7b-07f7-472e-943c-917b6078881f" />
+
+* Now we have to do the reverse and forward lookup zones
+* This is what your PTR reverse lookup should look like
+<img width="920" height="364" alt="image" src="https://github.com/user-attachments/assets/eeac6ccf-0d99-4d58-8e74-aa5374322845" />
+
+* Now, after all that, you can log out and log back in through the -adm account.
+
+## Joining WKS to Domain
+* We have to make a change to the DNS of the WKS settings to join it. We are going to change it to the one MGMT has now.
+* NEW DNS - 10.0.5.5
+* Now go to settings -> System -> About and then change the domain to ben.local
+* Restart and WKS should be joined to the domain
 
 
 
