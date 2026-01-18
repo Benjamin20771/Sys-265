@@ -100,7 +100,22 @@ In this lab, at the beginning of the year, we always setup our lab environments,
 * Now go to settings -> System -> About and then change the domain to ben.local
 * Restart and WKS should be joined to the domain
 
+## Lecture/Lab 
+### DNS
+* I feel as if I would like to learn more about the full capabilities of DNS and how it can be used in the work environment. I just have a feeling I'm not fully aware of all the advantages and capabilities of DNS. I feel as though researching DNS would be beneficial for me in the future
 
+### AD PowerShell
+* I would want to explore more with this new environment, as we're not used to having no GUI for us to use, but I find it more interesting relying on commands and how to navigate a computer more logically than just searching it up. This could also lead to more usage of a usage for one liners and how to be more efficient in labs.
+
+### Management VM
+* I feel like this will obviously be explained more in the future, but I want to know what the usage of this is more for. I know it's for the separation of power and not to have one VM have more than the other, but I feel as though, for now, it's getting in the way more than helping. I feel like I have to go through management and then get access to the AD, but then again, that is more secure. I would just like to know if it gets more practical.
+
+## Conclusion
+### Opionons 
+* I feel as if this was a good opener for the semester, and I have more of a handle on what we are going to be working with. Obviously, I stated my take on the MGMT server earlier, but I feel like it will come more into play later on in the year, and I will see the usage a lot more. I really liked the no-GUI AD server as it helped me with how I handle commands and be more efficient. This lab also really made me more curious about DNS, as the deliverables opened up some thoughts on what I really do with this other than connections? What doors does DNS really open up for me?
+
+### Final
+* We now have the FW, WKS, AD, and MGMT up and running and ready to go for the semester. They have access to each other and can all talk through DNS. The pings going out are going through the LAN, then the WAN Gateway, and then to Cyber.local, so we are secure and ready to go.
 
 
 
