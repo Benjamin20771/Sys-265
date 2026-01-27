@@ -65,7 +65,7 @@ sudo firewall-cmd --list-all
 ## Test SNMP from NMON-01
 ### Query web01 system information
 ```
-snmpwalk -v2c -c SYS265 web01.ben.local system
+snmpwalk -Os -c SYS265 -v2c web01.ben system
 ```
 #### Command breakdown:
 
