@@ -38,7 +38,7 @@ sudo truncate -s 0 /etc/snmp/snmpd.conf
 ```
 ### Edit configuration file
 ```
-sudo nano /etc/snmp/snmpd.conf
+sudo vi /etc/snmp/snmpd.conf
 ```
 * Add these four lines:
 ```
