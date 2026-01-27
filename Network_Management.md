@@ -124,12 +124,12 @@ Exit-PSSession
 * Test SNMP connectivity
 * Query system information
 ```
-snmpwalk -v2c -c SYS265 ad01.ben.local system
+snmpwalk -Os -c SYS265/Benji -v2c ad01.ben system
 ```
 
 ### See how many OIDs are available
 ```
-snmpwalk -v2c -c SYS265 ad01.ben.local | wc -l
+snmpwalk -Os -c SYS265/Benji -v2c ad01.ben | wc -l
 ```
 * Should return thousands of lines of SNMP data from AD01
 
@@ -152,7 +152,7 @@ Command breakdown:
 
 ### On NMON-01, generate SNMP traffic
 ```
-snmpwalk -v2c -c SYS265/Benji web01.ben system
+snmpwalk -Os -c SYS265/Benji -v2c web01.ben system
 ```
 #### Result
 * tcpdump output will show the community string "SYS265/Benji" in clear-text ASCII, so that anyone sniffing network traffic can see it!
@@ -173,12 +173,12 @@ snmpwalk -v2c -c SYS265/Benji web01.ben system
 #### Lab Examples:
 * Query system info
 ```
-snmpwalk -v2c -c SYS265 web01.ben.local system
+snmpwalk -Os -c SYS265 -v2c web01.ben system
 ```
 
 #### Get specific value
 ```
-snmpget -v2c -c SYS265/Benji web01.ben sysUpTime.0
+snmpget -Os -c SYS265/Benji -v2c web01.ben sysUpTime.0
 ```
 #### Why It Matters:
 * OIDs are standardized addresses - any device supporting standard MIBs can be queried the same way. Monitoring tools use specific OIDs to collect metrics like CPU, memory, and disk usage.
@@ -214,7 +214,7 @@ sudo tcpdump -i ens18 -A -c 10 port 161
 * Uses UDP port 161
 * Manager controls when data is collected
 ```
-snmpwalk -v2c -c SYS265/Benji web01.ben system
+snmpwalk -Os -c SYS265/Benji -v2c web01.ben system
 ```
 Pros: Predictable, reliable, manager controls timing
 Cons: Can miss events between polls, generates constant network traffic
