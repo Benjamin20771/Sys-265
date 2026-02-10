@@ -1,5 +1,11 @@
 # Sys-265
 ## Here is every Lab with a description 
 ### Remember, it is important to document what YOU do, even if it is just a copy-paste from lab instructions.
-### Lab01 (https://github.com/Benjamin20771/Sys-265/blob/main/SetUp.md)
+### [Lab01](https://github.com/Benjamin20771/Sys-265/blob/main/SetUp.md)
 * Setting up the VMs with networking and basic organizing
+
+### [Lab02](https://github.com/Benjamin20771/Sys-265/blob/main/Network_Management.md)
+* Configuring web01/nmon01 and then an overall configuration of SNMP on most of our devices
+
+### [Lab03](https://github.com/Benjamin20771/Sys-265/blob/main/Docker.md)
+* Set up a new Ubuntu Server VM (docker01-Ben) and configured Docker containerization
