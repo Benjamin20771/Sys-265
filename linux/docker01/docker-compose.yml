@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  # Unbound - Recursive DNS Resolver
+  unbound:
+    container_name: unbound
+    image: mvance/unbound:latest
+    ports:
+      - "5335:53/tcp"
+      - "5335:53/udp"
+    volumes:
+      - './unbound:/opt/unbound/etc/unbound'
+    restart: unless-stopped
+
+  # Pi-hole - DNS Firewall
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "8080:80/tcp"
+    environment:
+      TZ: 'America/New_York'
+      WEBPASSWORD: 'admin123'
+      ServerIP: '10.0.5.12'
+      DNS1: '127.0.0.1#5335'
+      DNS2: 'no'
+    volumes:
+      - './etc-pihole:/etc/pihole'
+      - './etc-dnsmasq.d:/etc/dnsmasq.d'
+    depends_on:
+      - unbound
+    restart: unless-stopped
