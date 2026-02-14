@@ -24,7 +24,6 @@ Client → Pi-hole → Check Blocklist → If Allowed → Unbound → Root DNS S
 ## Prerequisites
 
 - Docker and Docker Compose installed on docker01-Ben
-- docker01 network: 10.0.5.12/24, Gateway: 10.0.5.2
 - systemd-resolved disabled (conflicts with port 53)
 
 ## Project Setup
