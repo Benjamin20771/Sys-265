@@ -2,9 +2,7 @@
 
 ## Summary
 
-This project deploys Pi-hole (DNS firewall) and Unbound (recursive DNS resolver) as a two-container Docker application. 
-Pi-hole blocks advertisements and malicious domains at the DNS level, while Unbound provides privacy-focused DNS resolution without relying on third-party DNS providers like Google or Cloudflare. 
-The system demonstrates multi-container orchestration, DNS-based security, and network-wide protection.
+This project deploys Pi-hole (DNS firewall) and Unbound (recursive DNS resolver) as a two-container Docker application. Pi-hole blocks advertisements and malicious domains at the DNS level, while Unbound provides privacy-focused DNS resolution without relying on third-party DNS providers like Google or Cloudflare. The system is multi-container orchestration, DNS-based security, and network-wide protection.
 
 ## Architecture
 
@@ -28,7 +26,6 @@ Client → Pi-hole → Check Blocklist → If Allowed → Unbound → Root DNS S
 - Docker and Docker Compose installed on docker01-Ben
 - docker01 network: 10.0.5.12/24, Gateway: 10.0.5.2
 - systemd-resolved disabled (conflicts with port 53)
-- UFW firewall disabled for lab environment
 
 ## Project Setup
 
@@ -110,7 +107,7 @@ server:
 
 ### Disable Conflicting Services
 
-```bash
+```
 # Stop systemd-resolved (uses port 53)
 sudo systemctl stop systemd-resolved
 sudo systemctl disable systemd-resolved
@@ -176,7 +173,7 @@ sudo docker exec -it pihole
 ### Generate Test Queries
 
 **From MGMT-01 PowerShell:**
-```powershell
+```
 nslookup google.com
 nslookup facebook.com
 nslookup youtube.com
@@ -221,10 +218,10 @@ sudo docker-compose up -d
 
 **Process:**
 1. Client sends DNS query to Pi-hole
-2. Pi-hole checks domain against blocklists
+2. Pi-hole checks the domain against blocklists
 3. If blocked: Returns 0.0.0.0 (connection fails)
 4. If allowed: Forwards to Unbound
-5. Unbound performs recursive DNS lookup
+5. Unbound performs a recursive DNS lookup
 6. IP address returned to client
 7. All activity logged
 
@@ -242,7 +239,6 @@ sudo docker-compose up -d
 ### Multi-Container Benefits
 
 - **Separation of concerns:** Filtering (Pi-hole) vs Resolution (Unbound)
-- **Modularity:** Can update/replace components independently
 - **Scalability:** Can add more containers (monitoring, logging, etc.)
 - **Dependencies:** Docker Compose manages startup order
 
@@ -304,14 +300,13 @@ sudo chmod 644 unbound/unbound.conf
 
 ### Docker Multi-Container Orchestration
 
-- `depends_on` ensures proper startup order
-- Containers communicate via Docker bridge network
+- Containers communicate via the Docker bridge network
 - Volumes persist data across container restarts
 - Single `docker-compose.yml` defines entire stack
 
 ### DNS-Based Security
 
-- Blocking at DNS level prevents connections before they start
+- Blocking at the DNS level prevents connections before they start
 - More efficient than content-based filtering
 - Works on all devices (network-wide)
 - No client software needed
@@ -325,21 +320,18 @@ sudo chmod 644 unbound/unbound.conf
 
 ## Conclusion
 
-This project successfully deployed a two-container DNS firewall system using Docker Compose. 
-Pi-hole provides network-wide ad and malware blocking through DNS filtering, while Unbound ensures privacy by performing recursive DNS resolution without third-party DNS providers. 
-The system demonstrates practical Docker orchestration, DNS-based security techniques, and privacy-focused infrastructure design.
+This project successfully deployed a two-container DNS firewall system using Docker Compose. Pi-hole provides network-wide ad and malware blocking through DNS filtering, while Unbound ensures privacy by performing recursive DNS resolution without third-party DNS providers. The system demonstrates Docker orchestration, DNS-based security techniques, and privacy-focused infrastructure.
 
 **Skills Demonstrated:**
 - Multi-container Docker deployment
 - Container dependencies and networking
 - DNS service configuration
 - Network security implementation
-- Persistent data management with volumes
 
 **Infrastructure Integration:**
 - docker01-Ben: 10.0.5.12 (Ubuntu Server - Pi-hole + Unbound)
 - Integrates with existing ben.local domain
-- Can serve as primary DNS for entire network
+- Can serve as primary DNS for the entire network
 - Monitored alongside other infrastructure
 
 **Project Benefits:**
