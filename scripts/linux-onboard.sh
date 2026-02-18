@@ -204,10 +204,43 @@ configure_network_ubuntu() {
         cp "$netplan_file" "${netplan_file}.backup.$(date +%Y%m%d-%H%M%S)"
     fi
     
-    # Create netplan configuration
-    if [ -n "$DNS_SECONDARY" ]; then
-        # With secondary DNS
-        cat > "$netplan_file" << EOF
+    # Create netplan configuration based on DHCP or Static
+    if [ "$IP_ADDRESS" = "DHCP" ]; then
+        # DHCP Configuration
+        if [ -n "$DNS_SECONDARY" ]; then
+            cat > "$netplan_file" << EOF
+network:
+  version: 2
+  ethernets:
+    $INTERFACE:
+      dhcp4: yes
+      dhcp6: no
+      nameservers:
+        addresses:
+          - $DNS_PRIMARY
+          - $DNS_SECONDARY
+        search:
+          - $DOMAIN
+EOF
+        else
+            cat > "$netplan_file" << EOF
+network:
+  version: 2
+  ethernets:
+    $INTERFACE:
+      dhcp4: yes
+      dhcp6: no
+      nameservers:
+        addresses:
+          - $DNS_PRIMARY
+        search:
+          - $DOMAIN
+EOF
+        fi
+    else
+        # Static IP Configuration
+        if [ -n "$DNS_SECONDARY" ]; then
+            cat > "$netplan_file" << EOF
 network:
   version: 2
   ethernets:
@@ -226,9 +259,8 @@ network:
         search:
           - $DOMAIN
 EOF
-    else
-        # Without secondary DNS
-        cat > "$netplan_file" << EOF
+        else
+            cat > "$netplan_file" << EOF
 network:
   version: 2
   ethernets:
@@ -246,6 +278,7 @@ network:
         search:
           - $DOMAIN
 EOF
+        fi
     fi
     
     # Set correct permissions
@@ -504,8 +537,13 @@ display_summary() {
     echo "  Configuration Summary"
     echo "======================================"
     echo "Hostname:        $HOSTNAME"
-    echo "IP Address:      $IP_ADDRESS/$NETMASK_CIDR"
-    echo "Gateway:         $GATEWAY"
+    if [ "$IP_ADDRESS" = "DHCP" ]; then
+        echo "IP Address:      DHCP (automatic)"
+        echo "Gateway:         DHCP (automatic)"
+    else
+        echo "IP Address:      $IP_ADDRESS/$NETMASK_CIDR"
+        echo "Gateway:         $GATEWAY"
+    fi
     echo "DNS Primary:     $DNS_PRIMARY"
     if [ -n "$DNS_SECONDARY" ]; then
         echo "DNS Secondary:   $DNS_SECONDARY"
@@ -565,85 +603,146 @@ main() {
     print_info "Network interface set to: $INTERFACE"
     echo
     
-    # Get IP configuration
-    print_info "Configure static IP address for this system"
-    while true; do
-        get_input "What is the IP address for this system? " IP_ADDRESS
-        if validate_ip "$IP_ADDRESS"; then
-            break
-        else
-            print_error "Invalid IP address format. Use format: xxx.xxx.xxx.xxx"
-        fi
-    done
+    # Ask if user wants DHCP or Static IP
+    get_yes_no "Do you want to use DHCP (automatic IP)?" "n" USE_DHCP
     
-    echo "You entered: $IP_ADDRESS"
-    get_yes_no "Is this correct?" "y" IP_CONFIRM
-    if [ "$IP_CONFIRM" = "false" ]; then
+    if [ "$USE_DHCP" = "true" ]; then
+        # User wants DHCP
+        print_info "Network will be configured for DHCP"
+        IP_ADDRESS="DHCP"
+        NETMASK_CIDR="DHCP"
+        GATEWAY="DHCP"
+        
+        # Still need DNS info
+        echo
         while true; do
-            get_input "Enter IP address again" IP_ADDRESS
-            if validate_ip "$IP_ADDRESS"; then
-                break
-            fi
-        done
-    fi
-    
-    echo
-    get_input "What is the subnet mask in CIDR notation? " NETMASK_INPUT
-    # Convert subnet mask to CIDR if needed
-    case $NETMASK_INPUT in
-        255.255.255.0)
-            NETMASK_CIDR="24"
-            ;;
-        255.255.0.0)
-            NETMASK_CIDR="16"
-            ;;
-        255.0.0.0)
-            NETMASK_CIDR="8"
-            ;;
-        *)
-            NETMASK_CIDR="$NETMASK_INPUT"
-            ;;
-    esac
-    print_info "Using subnet mask: /$NETMASK_CIDR"
-    
-    echo
-    while true; do
-        get_input "What is the gateway IP address? " GATEWAY
-        if validate_ip "$GATEWAY"; then
-            break
-        else
-            print_error "Invalid gateway IP address"
-        fi
-    done
-    
-    echo
-    while true; do
-        get_input "What is the PRIMARY DNS server IP?" DNS_PRIMARY
-        if validate_ip "$DNS_PRIMARY"; then
-            break
-        else
-            print_error "Invalid DNS IP address"
-        fi
-    done
-    
-    echo
-    get_yes_no "Do you want to configure a secondary DNS server?" "n" USE_SECONDARY_DNS
-    
-    if [ "$USE_SECONDARY_DNS" = "true" ]; then
-        while true; do
-            get_input "What is the SECONDARY DNS server IP?" DNS_SECONDARY
-            if validate_ip "$DNS_SECONDARY"; then
+            get_input "What is the PRIMARY DNS server IP?" DNS_PRIMARY
+            if validate_ip "$DNS_PRIMARY"; then
                 break
             else
                 print_error "Invalid DNS IP address"
             fi
         done
+        
+        echo
+        get_yes_no "Do you want to configure a secondary DNS server?" "n" USE_SECONDARY_DNS
+        
+        if [ "$USE_SECONDARY_DNS" = "true" ]; then
+            while true; do
+                get_input "What is the SECONDARY DNS server IP?" DNS_SECONDARY
+                if validate_ip "$DNS_SECONDARY"; then
+                    break
+                else
+                    print_error "Invalid DNS IP address"
+                fi
+            done
+        else
+            DNS_SECONDARY=""
+        fi
+        
+        echo
+        get_input "What is the domain name?" DOMAIN
+        
     else
-        DNS_SECONDARY=""
+        # User wants Static IP
+        # Disable DHCP if active
+        print_info "Disabling DHCP on $INTERFACE..."
+        if [ "$OS_FAMILY" = "debian" ]; then
+            # Ubuntu 22.04+ uses netplan, older uses dhclient
+            if command -v dhclient &> /dev/null; then
+                # Release DHCP lease (older Ubuntu)
+                dhclient -r $INTERFACE 2>/dev/null || true
+                pkill dhclient 2>/dev/null || true
+            fi
+            # Flush any DHCP addresses
+            ip addr flush dev $INTERFACE 2>/dev/null || true
+        else
+            # Rocky/CentOS
+            nmcli con mod $INTERFACE ipv4.method manual 2>/dev/null || true
+        fi
+        print_success "DHCP will be disabled when static IP is applied"
+        
+        echo
+        # Get IP configuration
+        print_info "Configure static IP address for this system"
+        while true; do
+            get_input "What is the IP address for this system?" IP_ADDRESS
+            if validate_ip "$IP_ADDRESS"; then
+                break
+            else
+                print_error "Invalid IP address format. Use format: xxx.xxx.xxx.xxx"
+            fi
+        done
+        
+        echo "You entered: $IP_ADDRESS"
+        get_yes_no "Is this correct?" "y" IP_CONFIRM
+        if [ "$IP_CONFIRM" = "false" ]; then
+            while true; do
+                get_input "Enter IP address again" IP_ADDRESS
+                if validate_ip "$IP_ADDRESS"; then
+                    break
+                fi
+            done
+        fi
+        
+        echo
+        get_input "What is the subnet mask in CIDR notation?" NETMASK_INPUT
+        # Convert subnet mask to CIDR if needed
+        case $NETMASK_INPUT in
+            255.255.255.0)
+                NETMASK_CIDR="24"
+                ;;
+            255.255.0.0)
+                NETMASK_CIDR="16"
+                ;;
+            255.0.0.0)
+                NETMASK_CIDR="8"
+                ;;
+            *)
+                NETMASK_CIDR="$NETMASK_INPUT"
+                ;;
+        esac
+        print_info "Using subnet mask: /$NETMASK_CIDR"
+        
+        echo
+        while true; do
+            get_input "What is the gateway IP address?" GATEWAY
+            if validate_ip "$GATEWAY"; then
+                break
+            else
+                print_error "Invalid gateway IP address"
+            fi
+        done
+        
+        echo
+        while true; do
+            get_input "What is the PRIMARY DNS server IP?" DNS_PRIMARY
+            if validate_ip "$DNS_PRIMARY"; then
+                break
+            else
+                print_error "Invalid DNS IP address"
+            fi
+        done
+        
+        echo
+        get_yes_no "Do you want to configure a secondary DNS server?" "n" USE_SECONDARY_DNS
+        
+        if [ "$USE_SECONDARY_DNS" = "true" ]; then
+            while true; do
+                get_input "What is the SECONDARY DNS server IP?" DNS_SECONDARY
+                if validate_ip "$DNS_SECONDARY"; then
+                    break
+                else
+                    print_error "Invalid DNS IP address"
+                fi
+            done
+        else
+            DNS_SECONDARY=""
+        fi
+        
+        echo
+        get_input "What is the domain name?" DOMAIN
     fi
-    
-    echo
-    get_input "What is the domain name? " DOMAIN
     
     echo
     echo "=== System Identity ==="
