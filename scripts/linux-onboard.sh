@@ -100,14 +100,31 @@ validate_hostname() {
     fi
 }
 
-# Function to get input with default value
+# Function to get input (no defaults)
 get_input() {
+    local prompt=$1
+    local var_name=$2
+    local input
+    
+    while true; do
+        read -p "$prompt: " input
+        if [ -n "$input" ]; then
+            eval $var_name="'$input'"
+            break
+        else
+            print_error "Input cannot be empty. Please try again."
+        fi
+    done
+}
+
+# Function to get input with optional default (only used for optional fields)
+get_input_optional() {
     local prompt=$1
     local default=$2
     local var_name=$3
     
     if [ -n "$default" ]; then
-        read -p "$prompt [$default]: " input
+        read -p "$prompt (default: $default): " input
         if [ -z "$input" ]; then
             eval $var_name="$default"
         else
@@ -490,85 +507,138 @@ main() {
     
     # Gather network information
     echo "=== Network Configuration ==="
+    echo
     
     # Detect interface
     DEFAULT_INTERFACE=$(detect_interface)
-    get_input "Network interface" "$DEFAULT_INTERFACE" INTERFACE
+    print_info "Detected network interface: $DEFAULT_INTERFACE"
+    get_yes_no "Use detected interface ($DEFAULT_INTERFACE)?" "y" USE_DETECTED
+    
+    if [ "$USE_DETECTED" = "true" ]; then
+        INTERFACE="$DEFAULT_INTERFACE"
+    else
+        get_input "Enter network interface name" INTERFACE
+    fi
+    
+    echo
+    print_info "Network interface set to: $INTERFACE"
+    echo
     
     # Get IP configuration
+    print_info "Configure static IP address for this system"
     while true; do
-        get_input "IP Address" "" IP_ADDRESS
+        get_input "What is the IP address for this system? " IP_ADDRESS
         if validate_ip "$IP_ADDRESS"; then
             break
         else
-            print_error "Invalid IP address format"
+            print_error "Invalid IP address format. Use format: xxx.xxx.xxx.xxx"
         fi
     done
     
-    get_input "Netmask (CIDR notation)" "24" NETMASK_CIDR
+    echo "You entered: $IP_ADDRESS"
+    get_yes_no "Is this correct?" "y" IP_CONFIRM
+    if [ "$IP_CONFIRM" = "false" ]; then
+        while true; do
+            get_input "Enter IP address again" IP_ADDRESS
+            if validate_ip "$IP_ADDRESS"; then
+                break
+            fi
+        done
+    fi
     
+    echo
+    get_input "What is the subnet mask in CIDR notation? " NETMASK_INPUT
+    # Convert subnet mask to CIDR if needed
+    case $NETMASK_INPUT in
+        255.255.255.0)
+            NETMASK_CIDR="24"
+            ;;
+        255.255.0.0)
+            NETMASK_CIDR="16"
+            ;;
+        255.0.0.0)
+            NETMASK_CIDR="8"
+            ;;
+        *)
+            NETMASK_CIDR="$NETMASK_INPUT"
+            ;;
+    esac
+    print_info "Using subnet mask: /$NETMASK_CIDR"
+    
+    echo
     while true; do
-        get_input "Gateway" "10.0.5.2" GATEWAY
+        get_input "What is the gateway IP address? " GATEWAY
         if validate_ip "$GATEWAY"; then
             break
         else
-            print_error "Invalid gateway IP"
+            print_error "Invalid gateway IP address"
         fi
     done
     
+    echo
     while true; do
-        get_input "Primary DNS" "10.0.5.5" DNS_PRIMARY
+        get_input "What is the PRIMARY DNS server IP? " DNS_PRIMARY
         if validate_ip "$DNS_PRIMARY"; then
             break
         else
-            print_error "Invalid DNS IP"
+            print_error "Invalid DNS IP address"
         fi
     done
     
+    echo
     while true; do
-        get_input "Secondary DNS" "8.8.8.8" DNS_SECONDARY
+        get_input "What is the SECONDARY DNS server IP? " DNS_SECONDARY
         if validate_ip "$DNS_SECONDARY"; then
             break
         else
-            print_error "Invalid DNS IP"
+            print_error "Invalid DNS IP address"
         fi
     done
     
-    get_input "Domain name" "ben.local" DOMAIN
+    echo
+    get_input "What is the domain name? " DOMAIN
     
     echo
     echo "=== System Identity ==="
+    echo
     
     while true; do
-        get_input "Hostname" "" HOSTNAME
+        get_input "What should the hostname be? " HOSTNAME
         if validate_hostname "$HOSTNAME"; then
+            print_info "Hostname will be set to: $HOSTNAME"
             break
         else
-            print_error "Invalid hostname format"
+            print_error "Invalid hostname format. Use only letters, numbers, and hyphens."
         fi
     done
     
     echo
     echo "=== User Configuration ==="
+    echo
     
     USERS=()
     
-    # Named user
-    get_input "Create named user (your name)" "Ben" NAMED_USER
-    get_password "Password for $NAMED_USER" NAMED_PASSWORD
-    get_yes_no "Add $NAMED_USER to sudo group?" "y" NAMED_SUDO
+    print_info "Let's create user accounts for this system"
+    echo
+    
+    # First user
+    get_input "What is the username for the first user? " NAMED_USER
+    get_password "Set password for $NAMED_USER" NAMED_PASSWORD
+    get_yes_no "Should $NAMED_USER have sudo (administrator) privileges?" "y" NAMED_SUDO
     USERS+=("$NAMED_USER")
     
+    echo
     # Additional users
     while true; do
-        get_yes_no "Create additional user?" "n" CREATE_ANOTHER
+        get_yes_no "Do you want to create another user account?" "n" CREATE_ANOTHER
         if [ "$CREATE_ANOTHER" = "false" ]; then
             break
         fi
         
-        get_input "Username" "" ADDITIONAL_USER
-        get_password "Password for $ADDITIONAL_USER" ADDITIONAL_PASSWORD
-        get_yes_no "Add $ADDITIONAL_USER to sudo group?" "y" ADDITIONAL_SUDO
+        echo
+        get_input "What is the username for this user? " ADDITIONAL_USER
+        get_password "Set password for $ADDITIONAL_USER" ADDITIONAL_PASSWORD
+        get_yes_no "Should $ADDITIONAL_USER have sudo privileges?" "y" ADDITIONAL_SUDO
         
         # Store user info
         USERS+=("$ADDITIONAL_USER")
@@ -579,16 +649,36 @@ main() {
     
     echo
     echo "=== Service Configuration ==="
+    echo
     
-    get_yes_no "Configure passwordless sudo for deployer?" "y" PASSWORDLESS_SUDO
-    get_yes_no "Configure SSH?" "y" CONFIGURE_SSH
+    # Check if deployer user exists
+    DEPLOYER_EXISTS=false
+    for user in "${USERS[@]}"; do
+        if [ "$user" = "deployer" ]; then
+            DEPLOYER_EXISTS=true
+            break
+        fi
+    done
     
-    if [ "$CONFIGURE_SSH" = "true" ]; then
-        get_yes_no "Disable root SSH login?" "y" DISABLE_ROOT_SSH
+    if [ "$DEPLOYER_EXISTS" = "true" ]; then
+        get_yes_no "Configure passwordless sudo for deployer user?" "y" PASSWORDLESS_SUDO
+    else
+        PASSWORDLESS_SUDO="false"
     fi
     
-    get_yes_no "Configure firewall?" "y" CONFIGURE_FIREWALL
-    get_yes_no "Update system packages?" "y" UPDATE_SYSTEM
+    echo
+    get_yes_no "Do you want to configure SSH (remote access)?" "y" CONFIGURE_SSH
+    
+    if [ "$CONFIGURE_SSH" = "true" ]; then
+        echo
+        get_yes_no "Should root SSH login be disabled? (Recommended for security)" "y" DISABLE_ROOT_SSH
+    fi
+    
+    echo
+    get_yes_no "Do you want to configure the firewall?" "y" CONFIGURE_FIREWALL
+    
+    echo
+    get_yes_no "Do you want to update all system packages now? (This may take several minutes)" "y" UPDATE_SYSTEM
     
     echo
     display_summary
