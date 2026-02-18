@@ -205,7 +205,9 @@ configure_network_ubuntu() {
     fi
     
     # Create netplan configuration
-    cat > "$netplan_file" << EOF
+    if [ -n "$DNS_SECONDARY" ]; then
+        # With secondary DNS
+        cat > "$netplan_file" << EOF
 network:
   version: 2
   ethernets:
@@ -224,6 +226,27 @@ network:
         search:
           - $DOMAIN
 EOF
+    else
+        # Without secondary DNS
+        cat > "$netplan_file" << EOF
+network:
+  version: 2
+  ethernets:
+    $INTERFACE:
+      dhcp4: no
+      dhcp6: no
+      addresses:
+        - $IP_ADDRESS/$NETMASK_CIDR
+      routes:
+        - to: default
+          via: $GATEWAY
+      nameservers:
+        addresses:
+          - $DNS_PRIMARY
+        search:
+          - $DOMAIN
+EOF
+    fi
     
     # Set correct permissions
     chmod 600 "$netplan_file"
@@ -239,11 +262,18 @@ EOF
     fi
     
     # Update resolv.conf
-    cat > /etc/resolv.conf << EOF
+    if [ -n "$DNS_SECONDARY" ]; then
+        cat > /etc/resolv.conf << EOF
 nameserver $DNS_PRIMARY
 nameserver $DNS_SECONDARY
 search $DOMAIN
 EOF
+    else
+        cat > /etc/resolv.conf << EOF
+nameserver $DNS_PRIMARY
+search $DOMAIN
+EOF
+    fi
     
     # Handle cloud-init if present
     if [ -f /etc/cloud/cloud.cfg ]; then
@@ -255,11 +285,18 @@ EOF
 configure_network_rocky() {
     print_info "Configuring network using nmcli..."
     
+    # Build DNS string
+    if [ -n "$DNS_SECONDARY" ]; then
+        DNS_SERVERS="$DNS_PRIMARY $DNS_SECONDARY"
+    else
+        DNS_SERVERS="$DNS_PRIMARY"
+    fi
+    
     # Set connection to manual
     nmcli con mod "$INTERFACE" ipv4.method manual \
         ipv4.addresses "$IP_ADDRESS/$NETMASK_CIDR" \
         ipv4.gateway "$GATEWAY" \
-        ipv4.dns "$DNS_PRIMARY $DNS_SECONDARY" \
+        ipv4.dns "$DNS_SERVERS" \
         ipv4.dns-search "$DOMAIN"
     
     # Restart connection
@@ -470,7 +507,11 @@ display_summary() {
     echo "IP Address:      $IP_ADDRESS/$NETMASK_CIDR"
     echo "Gateway:         $GATEWAY"
     echo "DNS Primary:     $DNS_PRIMARY"
-    echo "DNS Secondary:   $DNS_SECONDARY"
+    if [ -n "$DNS_SECONDARY" ]; then
+        echo "DNS Secondary:   $DNS_SECONDARY"
+    else
+        echo "DNS Secondary:   (none)"
+    fi
     echo "Domain:          $DOMAIN"
     echo "Interface:       $INTERFACE"
     echo ""
@@ -577,7 +618,7 @@ main() {
     
     echo
     while true; do
-        get_input "What is the PRIMARY DNS server IP? " DNS_PRIMARY
+        get_input "What is the PRIMARY DNS server IP?" DNS_PRIMARY
         if validate_ip "$DNS_PRIMARY"; then
             break
         else
@@ -586,14 +627,20 @@ main() {
     done
     
     echo
-    while true; do
-        get_input "What is the SECONDARY DNS server IP? " DNS_SECONDARY
-        if validate_ip "$DNS_SECONDARY"; then
-            break
-        else
-            print_error "Invalid DNS IP address"
-        fi
-    done
+    get_yes_no "Do you want to configure a secondary DNS server?" "n" USE_SECONDARY_DNS
+    
+    if [ "$USE_SECONDARY_DNS" = "true" ]; then
+        while true; do
+            get_input "What is the SECONDARY DNS server IP?" DNS_SECONDARY
+            if validate_ip "$DNS_SECONDARY"; then
+                break
+            else
+                print_error "Invalid DNS IP address"
+            fi
+        done
+    else
+        DNS_SECONDARY=""
+    fi
     
     echo
     get_input "What is the domain name? " DOMAIN
