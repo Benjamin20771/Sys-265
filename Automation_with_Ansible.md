@@ -3,7 +3,7 @@
 ## Summary
 In this lab, I implemented Ansible automation across heterogeneous systems, including three Linux servers (Ubuntu) and two Windows workstations. 
 I created a reusable Linux onboarding script to automate initial system configuration, reducing deployment time from 30 minutes to under 5 minutes per system. 
-Using Ansible, we deployed services to Linux hosts via Galaxy roles (Webmin and Apache), configured passwordless SSH authentication with passphrase-protected keys and an SSH agent, and automated Windows software deployment through Chocolatey package management. 
+Using Ansible, we deployed services to Linux hosts via Galaxy roles (Webmin and Apache), configured passwordless SSH authentication with passphrase-protected keys and an SSH agent, and automated Windows software deployment through Chocolatey package management.
 
 ## Part 1: Linux Onboarding Script
 
