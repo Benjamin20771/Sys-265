@@ -13,14 +13,14 @@ The lab demonstrated Infrastructure as Code principles, agentless configuration 
 I created an interactive bash script that automates the entire onboarding process through a question-and-answer interface. 
 The script handles both Ubuntu and Rocky Linux distributions.
 
-**Link to script on GitHub:** (script) [https://github.com/Benjamin20771/Sys-265/blob/main/scripts/linux-onboard.sh]
+**Link to script on GitHub:** [Script](https://github.com/Benjamin20771/Sys-265/blob/main/scripts/linux-onboard.sh)
 
 ### Script Features
 
 **Interactive Configuration:**
 The script asks questions and validates all inputs before making changes:
 
-```bash
+```
 === Network Configuration ===
 Detected network interface: ens18
 Use detected interface (ens18)? (Y/n): y
@@ -52,13 +52,13 @@ What is the username for this user?: deployer
 **Key Design Decisions:**
 
 **1. DHCP vs Static IP Choice:**
-The script asks if you want DHCP or static IP. For static, it prompts for all network details. For DHCP, it only asks for DNS and domain. This flexibility allows the script to work in various environments.
+The script asks if you want a DHCP or a static IP. For static, it prompts for all network details. For DHCP, it only asks for DNS and the domain. This flexibility allows the script to work in various environments.
 
 **2. Optional Secondary DNS:**
 Instead of requiring a secondary DNS server, the script asks if you want one. If you say no, it configures the system with only the primary DNS, avoiding unnecessary configuration.
 
 **3. Input Validation:**
-- IP addresses validated against regex pattern
+- IP addresses validated against a regex pattern
 - Hostname validated for proper format (no spaces, valid characters)
 - Passwords confirmed with re-entry
 - Empty inputs rejected with error messages
@@ -72,7 +72,7 @@ The script detects whether it's running on Ubuntu or Rocky Linux and adjusts its
 
 **Network Configuration (Ubuntu):**
 Creates netplan YAML configuration:
-```yaml
+```
 network:
   version: 2
   ethernets:
@@ -102,11 +102,11 @@ Sets hostname with `hostnamectl set-hostname` and updates `/etc/hosts`:
 ```
 
 **User Creation:**
-Creates users with home directories, sets passwords securely, adds to sudo group, and sets proper shell (`/bin/bash`).
+Creates users with home directories, sets passwords securely, adds to the sudo group, and sets the proper shell (`/bin/bash`).
 
 **Passwordless Sudo:**
 Creates `/etc/sudoers.d/sys265`:
-```bash
+```
 deployer ALL=(ALL) NOPASSWD: ALL
 ```
 This allows the deployer user to run sudo commands without password prompts, essential for Ansible automation.
@@ -139,10 +139,10 @@ Displays all settings before applying and asks for confirmation. Also provides d
 ### Script Usage
 
 **Deployment:**
-```bash
+```
 # Clone repository
-git clone https://github.com/bendeyot/sys265-repos
-cd sys265-repos/scripts
+git clone https://github.com/Benjamin20771/Sys265
+cd Sys265/scripts
 
 # Make executable
 chmod +x linux-onboard.sh
@@ -151,35 +151,12 @@ chmod +x linux-onboard.sh
 sudo ./linux-onboard.sh
 ```
 
-**Time Savings:**
-- Manual configuration: ~30 minutes per system
-- Script configuration: ~5 minutes per system
-- Configured 3 systems: Saved 75 minutes total
-- Eliminated configuration errors from manual typing
-
-### Why This Matters
-
-**Consistency:**
-Every system configured identically. No typos in IP addresses, no forgotten steps, no configuration drift.
-
-**Documentation:**
-The script itself documents the exact configuration applied. No need to remember what was done - it's in the code.
-
-**Repeatability:**
-Can deploy dozens of systems with identical configuration. Perfect for labs, testing, or production deployments.
-
-**Version Control:**
-Script stored in Git. Can track changes, rollback to previous versions, collaborate with team members.
-
-**Infrastructure as Code:**
-Treating infrastructure configuration as code enables DevOps practices: review, test, automate, repeat.
-
 ## Part 2: Ansible Installation and Setup
 
 ### Installing Ansible on Controller
 
 **Installation:**
-```bash
+```
 sudo apt install ansible sshpass python3-paramiko -y
 ```
 
@@ -188,11 +165,8 @@ sudo apt install ansible sshpass python3-paramiko -y
 - `sshpass` - Allows non-interactive SSH password authentication (used for initial key distribution)
 - `python3-paramiko` - Python SSH library that Ansible uses for SSH connections
 
-**Why Ansible:**
-Ansible is agentless - uses SSH to connect to managed hosts. No agents to install, update, or troubleshoot. Works on any system with SSH and Python (Linux) or SSH with PowerShell (Windows).
-
 **Verification:**
-```bash
+```
 ansible --version
 ```
 
@@ -210,7 +184,7 @@ Output shows:
 A private key without a passphrase is like leaving your house key under the doormat. Anyone who gets the file can use it. A passphrase encrypts the private key, so even if stolen, it's useless without the passphrase.
 
 **Generation:**
-```bash
+```
 ssh-keygen -t rsa -b 4096
 # File location: /home/deployer/.ssh/id_rsa (default)
 # Passphrase: [entered and confirmed]
@@ -227,7 +201,7 @@ ssh-keygen -t rsa -b 4096
 ### Distributing Public Keys
 
 **Using ssh-copy-id:**
-```bash
+```
 ssh-copy-id deployer@ansible1-Ben.ben.local
 ssh-copy-id deployer@ansible2-Ben.ben.local
 ```
@@ -239,7 +213,7 @@ ssh-copy-id deployer@ansible2-Ben.ben.local
 4. Appends key instead of overwriting (safe for multiple keys)
 
 **Testing:**
-```bash
+```
 ssh deployer@ansible1-Ben.ben.local
 # Should login without password prompt
 # (will ask for passphrase to decrypt private key)
@@ -254,7 +228,7 @@ With a passphrase-protected key, you'd need to enter the passphrase every time y
 SSH Agent decrypts the private key once, keeps it in memory, and reuses it for all SSH connections.
 
 **Configuration in ~/.bashrc:**
-```bash
+```
 # SSH Agent for Ansible
 if ! pgrep -u "$USER" ssh-agent > /dev/null; then
     ssh-agent > ~/.ssh-agent-thing
@@ -269,11 +243,11 @@ ssh-add -l &>/dev/null || ssh-add -t 14400 ~/.ssh/id_rsa 2>/dev/null
 1. Checks if ssh-agent is running for this user
 2. If not, starts ssh-agent and saves connection info
 3. Loads the agent connection info
-4. Checks if key is already loaded
-5. If not, loads the key with 4-hour timeout (14400 seconds)
+4. Checks if the key is already loaded
+5. If not, loads the key with a 4-hour timeout (14400 seconds)
 
 **Result:**
-Enter passphrase once per session (or once every 4 hours). All subsequent SSH connections are passwordless and passphrase-less.
+Enter passphrase once per session (or once every 4 hours). All subsequent SSH connections are passwordless and passphraseless.
 
 **Security benefit:**
 Still protected against key theft (passphrase required), but convenient for automation.
@@ -282,7 +256,7 @@ Still protected against key theft (passphrase required), but convenient for auto
 
 ### Directory Structure
 
-```bash
+```
 ~/ansible-files/
 ├── inventory           # Host definitions
 ├── ansible.cfg         # Ansible settings
@@ -298,7 +272,7 @@ Still protected against key theft (passphrase required), but convenient for auto
 Defines which hosts Ansible manages and organizes them into groups.
 
 **Content:**
-```ini
+```
 [linux]
 ansible1-Ben.ben.local
 ansible2-Ben.ben.local
@@ -312,7 +286,7 @@ wks01-Ben.ben.local
 
 [windows:vars]
 ansible_user=ben.deyot-adm
-ansible_password=Pepper123!
+ansible_password=[classified]
 ansible_connection=ssh
 ansible_shell_type=powershell
 ```
@@ -325,25 +299,25 @@ ansible_shell_type=powershell
 - `[windows]` - All Windows hosts
 
 **Group Variables (`[windows:vars]`):**
-Variables that apply to all hosts in the windows group:
+Variables that apply to all hosts in the Windows group:
 - `ansible_user` - Username for authentication
 - `ansible_password` - Password (in production, use vault encryption)
 - `ansible_connection=ssh` - Use SSH instead of WinRM
 - `ansible_shell_type=powershell` - Use PowerShell for commands
 
 **Why SSH for Windows:**
-Microsoft introduced OpenSSH for Windows as the modern remote management protocol. More secure than WinRM, works through firewalls easier, consistent with Linux management.
+Microsoft introduced OpenSSH for Windows as the modern remote management protocol. More secure than WinRM, it works through firewalls more easily, consistent with Linux management.
 
 ### Ansible Configuration File
 
 **ansible.cfg:**
-```ini
+```
 [defaults]
 host_key_checking = False
 ```
 
 **Purpose:**
-Disables SSH host key verification. On first connection, SSH normally asks "Are you sure you want to continue connecting?" This bypasses that prompt.
+Disables SSH host key verification. On first connection, SSH normally asks, "Are you sure you want to continue connecting?" This bypasses that prompt.
 
 **Security Trade-off:**
 Less secure (vulnerable to man-in-the-middle attacks) but convenient for lab environments where we're constantly rebuilding systems. In production, you'd pre-populate known_hosts or use proper key management.
@@ -351,12 +325,12 @@ Less secure (vulnerable to man-in-the-middle attacks) but convenient for lab env
 ### Testing Basic Connectivity
 
 **Ansible Ping Module:**
-```bash
+```
 ansible -i inventory all -m ping
 ```
 
 **Expected output:**
-```json
+```
 ansible1-Ben.ben.local | SUCCESS => {
     "changed": false,
     "ping": "pong"
@@ -375,7 +349,7 @@ NOT ICMP ping. Ansible's ping module:
 4. Returns "pong" if successful
 
 **"changed": false means:**
-Ansible tracks whether operations change system state. Ping doesn't change anything, so changed=false. This is idempotency - running the same operation multiple times produces the same result.
+Ansible tracks whether operations change the system state. Ping doesn't change anything, so changed=false.
 
 ## Part 5: Ansible Playbooks and Roles
 
@@ -385,12 +359,12 @@ Ansible tracks whether operations change system state. Ping doesn't change anyth
 Community repository of pre-built Ansible roles (like Docker Hub for containers). Instead of writing installation steps from scratch, download a role that someone else built and tested.
 
 **Installation:**
-```bash
+```
 ansible-galaxy install semuadmin.webmin
 ```
 
 **Playbook (webmin.yml):**
-```yaml
+```
 ---
 - name: Install Webmin
   hosts: webmin
@@ -407,7 +381,7 @@ ansible-galaxy install semuadmin.webmin
 - `roles:` - Include external roles
 
 **Execution:**
-```bash
+```
 ansible-playbook -i inventory webmin.yml
 ```
 
@@ -415,7 +389,7 @@ ansible-playbook -i inventory webmin.yml
 1. Ansible connects to ansible2 via SSH as deployer
 2. Escalates to root (become: yes)
 3. Downloads and executes the semuadmin.webmin role
-4. Role installs Webmin package, configures service, starts it
+4. Role installs Webmin package, configures service, and starts it
 5. Reports success/failure
 
 **Accessing Webmin:**
@@ -426,25 +400,25 @@ Password: deployer password
 ```
 
 **Firewall Issue Encountered:**
-Webmin was installed and running but inaccessible from browser. Rocky Linux's firewalld was blocking port 10000.
+Webmin was installed and running, but inaccessible from the browser. Rocky Linux's firewalld was blocking port 10000.
 
 **Solution:**
-```bash
+```
 sudo firewall-cmd --permanent --add-port=10000/tcp
 sudo firewall-cmd --reload
 ```
 
-**Lesson:** Always check firewall after installing network services.
+**Lesson:** Always check the firewall after installing network services.
 
 ### Apache Web Server Installation
 
 **Role:**
-```bash
+```
 ansible-galaxy install geerlingguy.apache
 ```
 
 **Playbook (apache.yml):**
-```yaml
+```
 ---
 - name: Install Apache Web Server
   hosts: ansible1-Ben.ben.local
@@ -454,7 +428,7 @@ ansible-galaxy install geerlingguy.apache
 ```
 
 **Execution:**
-```bash
+```
 ansible-playbook -i inventory apache.yml
 ```
 
@@ -463,7 +437,7 @@ Apache installed, configured, and started on ansible1. Default Rocky Linux test 
 
 **Same firewall issue:**
 Had to open HTTP port:
-```bash
+```
 sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --reload
 ```
@@ -476,8 +450,6 @@ The geerlingguy.apache role handles:
 - Firewall rules (though this didn't work due to our specific setup)
 - Multiple OS support (Ubuntu, CentOS, etc.)
 
-Without the role, we'd need to write all those tasks manually.
-
 ## Part 6: Windows Automation
 
 ### Preparing Windows Hosts
@@ -487,7 +459,7 @@ Without the role, we'd need to write all those tasks manually.
 Modern Windows includes OpenSSH as an optional feature. Much better than WinRM for remote management.
 
 **Installation (PowerShell as Administrator):**
-```powershell
+```
 # Add Windows capability
 Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
 
@@ -506,7 +478,7 @@ Get-Service sshd
 By default, Windows SSH uses cmd.exe. Ansible needs PowerShell for Windows modules.
 
 **Registry modification:**
-```powershell
+```
 # Enable console prompting
 Set-ItemProperty "HKLM:\Software\Microsoft\Powershell\1\ShellIds" -Name ConsolePrompting -Value $true
 
@@ -518,29 +490,29 @@ New-ItemProperty -Path HKLM:\SOFTWARE\OpenSSH -Name DefaultShell -Value "C:\Wind
 ```
 
 **Firewall Rule:**
-```powershell
+```
 New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
 ```
 
 **Testing SSH:**
-```bash
+```
 ssh ben.deyot-adm@mgmt01-Ben.ben.local
 ```
 
-Should connect and show PowerShell prompt.
+Should connect and show a PowerShell prompt.
 
 **Challenge encountered:**
-Registry path `HKLM:\SOFTWARE\OpenSSH` didn't exist, causing error. Had to create it first with `New-Item` before setting the DefaultShell property.
+Registry path `HKLM:\SOFTWARE\OpenSSH` didn't exist, causing an error. Had to create it first with `New-Item` before setting the DefaultShell property.
 
 ### Windows Ansible Connectivity
 
 **Testing with win_ping:**
-```bash
+```
 ansible -i inventory windows -m win_ping
 ```
 
 **Expected output:**
-```json
+```
 mgmt01-Ben.ben.local | SUCCESS => {
     "changed": false,
     "ping": "pong"
@@ -558,10 +530,10 @@ WKS01 was on DHCP (10.0.5.150). Controller couldn't resolve `wks01-Ben.ben.local
 Controller's `/etc/resolv.conf` was pointing to systemd-resolved stub (127.0.0.53) instead of AD-01 (10.0.5.5).
 
 **Solution:**
-Verified netplan had correct DNS settings and applied configuration. systemd-resolved then properly forwarded queries to AD-01, which resolved wks01's DHCP address.
+Verified netplan had correct DNS settings and applied the configuration. systemd-resolved then properly forwarded queries to AD-01, which resolved wks01's DHCP address.
 
 **Verification:**
-```bash
+```
 nslookup wks01-Ben.ben.local
 # Returned: 10.0.5.150
 ```
@@ -572,7 +544,7 @@ nslookup wks01-Ben.ben.local
 Windows package manager (like apt for Ubuntu, yum for CentOS). Community repository of software packages. Enables scripted, automated Windows software installation.
 
 **Playbook (windows_software.yml):**
-```yaml
+```
 ---
 - name: Install Windows Software via Chocolatey
   hosts: windows
@@ -592,14 +564,14 @@ Windows package manager (like apt for Ubuntu, yum for CentOS). Community reposit
 - `state: present` ensures packages are installed
 
 **Execution:**
-```bash
+```
 ansible-playbook -i inventory roles/windows_software.yml
 ```
 
 **What happens:**
 1. Ansible connects via SSH to mgmt01 and wks01
 2. Checks if Chocolatey is installed (installs if not)
-3. For each package, checks if already installed
+3. For each package, check if already installed
 4. Installs missing packages
 5. Reports changed/unchanged status
 
@@ -608,14 +580,14 @@ First run: All packages installed, changed=true
 Second run: Packages already present, changed=false
 
 **Verification:**
-```powershell
+```
 choco list
 ```
 
 Shows installed packages: 7zip, git, notepadplusplus
 
 **Rate Limiting:**
-Chocolatey's public repository rate limits connections. If playbook fails with rate limit errors, wait 5-10 minutes before retrying.
+Chocolatey's public repository rate limits connections. If the playbook fails with rate limit errors, wait 5-10 minutes before retrying.
 
 ## Research and Learning
 
@@ -628,9 +600,9 @@ I wasn't familiar with the differences between agentless configuration managemen
 
 **Agent-Based Systems (Puppet, Chef, SaltStack):**
 - Require agent software installed on every managed node
-- Agents run continuously in background
+- Agents run continuously in the background
 - Agents periodically "phone home" to pull configurations (pull model)
-- Central server maintains desired state
+- Central server maintains the desired state
 - Agents enforce configuration locally
 
 **Agentless Systems (Ansible):**
@@ -647,10 +619,10 @@ I wasn't familiar with the differences between agentless configuration managemen
 - Simpler architecture, fewer moving parts
 
 **Disadvantages of Agentless:**
-- Requires SSH connectivity from control node to all managed nodes
+- Requires SSH connectivity from the control node to all managed nodes
 - Slower at massive scale (1000+ nodes) compared to distributed agents
-- Control node becomes single point of failure
-- No automatic drift detection (agents can continuously enforce state)
+- Control node becomes a single point of failure
+- No automatic drift detection (agents can continuously enforce the state)
 
 #### Lab Application
 
@@ -662,100 +634,17 @@ This lab used Ansible's agentless architecture:
 
 #### Why It Matters
 
-**Operational simplicity:**
-No agent lifecycle management. One less thing to break, update, or troubleshoot.
-
-**Heterogeneous environments:**
-Works with Linux, Windows, network devices, cloud APIs - anything with SSH or API access.
-
 **Getting started quickly:**
 No agent deployment phase. Start automating immediately.
 
 **In production:**
 For smaller environments (10-100 servers), agentless is simpler. For massive scale (1000+ servers) or strict compliance requirements (continuous state enforcement), agent-based may be better.
 
-### Topic 2: SSH Key Authentication with Passphrases and SSH Agent
-
-#### What I Didn't Know
-I understood basic SSH key authentication but didn't fully grasp:
-- Why passphrase protection matters
-- How SSH agent works
-- The security vs convenience trade-off
-
-#### Research Results
-
-**SSH Key Authentication Without Passphrase:**
-- Private key is unencrypted file
-- Anyone with the file can authenticate
-- Like leaving your house key under the doormat
-- If file is stolen (laptop theft, backup compromise), attacker has full access
-- Common in automation because scripts can't type passphrases
-
-**SSH Key Authentication With Passphrase:**
-- Private key encrypted with symmetric encryption
-- Passphrase required to decrypt private key
-- File theft alone insufficient - attacker also needs passphrase
-- Significantly more secure
-- But: automation challenge, must enter passphrase for each connection
-
-**SSH Agent - Best of Both Worlds:**
-- Decrypts private key once (when loaded into agent)
-- Keeps decrypted key in memory
-- Provides key to SSH without re-prompting for passphrase
-- Can set timeout (14400 seconds = 4 hours in our lab)
-- After timeout, passphrase required again
-
-**How SSH Agent Works:**
-1. Start ssh-agent (creates Unix socket)
-2. Run ssh-add (prompts for passphrase, decrypts key, loads into agent)
-3. SSH clients communicate with agent via socket
-4. Agent provides decrypted key for authentication
-5. No passphrase prompts for subsequent connections
-
-**Security Model:**
-- Private key file: Encrypted, useless without passphrase
-- Agent memory: Decrypted key, protected by OS memory isolation
-- Socket: Only accessible by user who started agent
-- Timeout: Limits exposure window
-
-#### Lab Application
-
-**Key generation:**
-```bash
-ssh-keygen -t rsa -b 4096
-# With passphrase protection
-```
-
-**Agent configuration in ~/.bashrc:**
-Automatically starts agent on login and loads key with 4-hour timeout.
-
-**Result:**
-- Enter passphrase once when logging into controller
-- All SSH connections (manual and Ansible) work without prompts
-- Still protected against key theft
-- Ansible playbooks run without interaction
-
-#### Why It Matters
-
-**Security:**
-Passphrase protection essential for production. Laptops get stolen, backups get compromised, keys get accidentally committed to GitHub. Passphrase is the last line of defense.
-
-**Automation:**
-SSH agent enables automation with passphrase-protected keys. Don't have to choose between security and convenience.
-
-**Compliance:**
-Many security frameworks require passphrase-protected keys. SSH agent makes compliance practical.
-
-**Best practice:**
-- Development: Passphrase-protected keys with agent
-- Production automation: Service accounts with passphrase-protected keys, agent in systemd service, or consider HashiCorp Vault for key management
-- Personal systems: Always use passphrases
-
-### Topic 3: Infrastructure as Code and Idempotency
+### Topic 2: Infrastructure as Code and Idempotency
 
 #### What I Didn't Know
 I had heard "Infrastructure as Code" and "idempotency" but didn't understand:
-- What makes something "Infrastructure as Code"
+- What makes something "Infrastructure as Code."
 - Why idempotency matters
 - How it changes operational practices
 
@@ -769,14 +658,14 @@ I had heard "Infrastructure as Code" and "idempotency" but didn't understand:
 - Declarative (what you want) vs imperative (how to do it)
 
 **Traditional Approach:**
-1. SSH to server
+1. SSH to the server
 2. Run commands manually
 3. Document in wiki (maybe)
 4. Hope you remember next time
 5. Configuration drift over time
 
 **IaC Approach:**
-1. Write playbook describing desired state
+1. Write a playbook describing the desired state
 2. Run playbook
 3. Playbook is documentation
 4. Re-run anytime
@@ -788,7 +677,7 @@ An operation is idempotent if running it multiple times produces the same result
 **Examples:**
 
 **Idempotent:**
-```bash
+```
 sudo apt install apache2
 # First run: Installs Apache
 # Second run: Already installed, does nothing
@@ -796,7 +685,7 @@ sudo apt install apache2
 ```
 
 **NOT Idempotent:**
-```bash
+```
 echo "PermitRootLogin no" >> /etc/ssh/sshd_config
 # First run: Adds line
 # Second run: Adds duplicate line
@@ -812,7 +701,7 @@ echo "PermitRootLogin no" >> /etc/ssh/sshd_config
 **Benefits:**
 
 **Drift detection:**
-Run playbook. If changed=false everywhere, system matches desired state. If changed=true, system drifted and was corrected.
+Run playbook. If changed=false everywhere, the system matches the desired state. If changed=true, the system drifted and was corrected.
 
 **Safe re-runs:**
 Can re-run playbooks as health checks or remediation without fear of breaking things.
@@ -836,19 +725,16 @@ Could run playbooks repeatedly while debugging without causing issues.
 #### Why It Matters
 
 **Production reliability:**
-No "works on my machine" problems. Playbook defines exact state. Every system built from same playbook is identical.
+No "works on my machine" problems. Playbook defines the exact state. Every system built from the same playbook is identical.
 
 **Disaster recovery:**
 Server dies? Run playbook on new VM. Exact configuration restored in minutes.
 
-**Auditing:**
-Git history shows who changed what when. No mystery configurations.
-
 **Testing:**
-Can test playbooks in dev environment, then run same playbook in production.
+Can test playbooks in the dev environment, then run the same playbook in production.
 
 **Knowledge retention:**
-Playbook is documentation. No "tribal knowledge" required.
+Playbook is documentation. 
 
 **In this lab:**
 - linux-onboard.sh: IaC for system initialization
@@ -861,7 +747,7 @@ Playbook is documentation. No "tribal knowledge" required.
 ### Challenge 1: Running Ansible as Root Instead of Deployer
 
 **Problem:**
-Attempted to run Ansible as root user. All commands failed with "Permission denied" trying to SSH to ansible1 and ansible2.
+Attempted to run Ansible as the root user. All commands failed with "Permission denied" when trying to SSH to ansible1 and ansible2.
 
 **Symptoms:**
 ```
@@ -869,7 +755,7 @@ Failed to connect to the host via ssh: root@ansible1-Ben.ben.local: Permission d
 ```
 
 **Cause:**
-SSH keys were generated for deployer user (`/home/deployer/.ssh/id_rsa`). When running as root, Ansible tried to use root's SSH keys (`/root/.ssh/id_rsa`), which didn't exist or weren't distributed to ansible hosts.
+SSH keys were generated for the deployer user (`/home/deployer/.ssh/id_rsa`). When running as root, Ansible tried to use root's SSH keys (`/root/.ssh/id_rsa`), which didn't exist or weren't distributed to Ansible hosts.
 
 **Solution:**
 1. Switched to deployer user: `su - deployer`
@@ -877,61 +763,7 @@ SSH keys were generated for deployer user (`/home/deployer/.ssh/id_rsa`). When r
 3. Fixed ownership: `sudo chown -R deployer:deployer ~/ansible-files`
 4. Re-ran Ansible as deployer
 
-**Learning:**
-SSH keys are user-specific. The user running Ansible must have their public key in `~/.ssh/authorized_keys` on managed hosts. Always run Ansible as the user with proper SSH keys configured.
-
-### Challenge 2: SSH Agent Not Retaining Key
-
-**Problem:**
-SSH agent configuration added to ~/.bashrc, but `ssh-add -l` showed "The agent has no identities."
-
-**Symptoms:**
-Had to enter passphrase on every SSH connection, defeating the purpose of SSH agent.
-
-**Cause:**
-SSH keypair was generated as root, stored in `/root/.ssh/`. When switched to deployer user, deployer had no SSH keys in `~/.ssh/`.
-
-**Solution:**
-1. Copied root's SSH keys to deployer: `sudo cp /root/.ssh/id_rsa* ~/.ssh/`
-2. Fixed ownership: `sudo chown deployer:deployer ~/.ssh/id_rsa*`
-3. Fixed permissions: `chmod 600 ~/.ssh/id_rsa`
-4. Loaded key into agent: `ssh-add ~/.ssh/id_rsa`
-
-**Learning:**
-SSH keys live in user home directories. Keys generated as root are useless for other users. Generate keys as the user who will use them, or copy and fix ownership if already generated.
-
-### Challenge 3: Webmin and Apache Ports Blocked by Firewall
-
-**Problem:**
-Webmin installed successfully on ansible2, service running, but web interface inaccessible from browser. Same issue with Apache on ansible1.
-
-**Symptoms:**
-- `sudo systemctl status webmin` showed active (running)
-- `sudo ss -tulpn | grep 10000` showed port listening
-- Browser: "This site can't be reached"
-
-**Cause:**
-Rocky Linux uses firewalld (not UFW like Ubuntu). By default, firewalld blocks most incoming ports. Neither Webmin nor Apache roles configured firewalld rules.
-
-**Solution:**
-```bash
-# For Webmin
-sudo firewall-cmd --permanent --add-port=10000/tcp
-sudo firewall-cmd --reload
-
-# For Apache  
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --reload
-```
-
-**Learning:**
-Always check firewall after installing network services. Different distros use different firewall systems:
-- Ubuntu: UFW (simple interface to iptables)
-- Rocky/CentOS: firewalld (zones-based firewall)
-
-Services can be running and listening but completely inaccessible due to firewall blocks.
-
-### Challenge 4: Windows PowerShell Not Default SSH Shell
+### Challenge 2: Windows PowerShell Not Default SSH Shell
 
 **Problem:**
 After configuring OpenSSH on Windows and setting registry keys for PowerShell default shell, SSH still connected to cmd.exe instead of PowerShell.
@@ -940,13 +772,13 @@ After configuring OpenSSH on Windows and setting registry keys for PowerShell de
 ```
 C:\Users\ben.deyot-adm>
 ```
-Instead of expected PowerShell prompt.
+Instead of the expected PowerShell prompt.
 
 **Cause:**
-Registry path `HKLM:\SOFTWARE\OpenSSH` didn't exist. Command to set DefaultShell property failed silently.
+Registry path `HKLM:\SOFTWARE\OpenSSH` didn't exist. Command to set the DefaultShell property failed silently.
 
 **Solution:**
-```powershell
+```
 # Create registry key first
 New-Item -Path "HKLM:\SOFTWARE\OpenSSH" -Force
 
@@ -960,13 +792,13 @@ Restart-Service sshd
 **Learning:**
 Windows registry paths must exist before setting properties. PowerShell cmdlets need error checking. In production scripts, use `-ErrorAction Stop` and try/catch blocks.
 
-### Challenge 5: WKS01 DNS Resolution Failure
+### Challenge 3: WKS01 DNS Resolution Failure
 
 **Problem:**
 Controller could ping and SSH to wks01 by IP (10.0.5.150) but not by hostname (wks01-Ben.ben.local).
 
 **Symptoms:**
-```bash
+```
 nslookup wks01-Ben.ben.local
 # Server: 127.0.0.53
 # Address: 127.0.0.53#53
@@ -993,7 +825,7 @@ Ubuntu's DNS resolution is layered:
 
 Must ensure the entire chain is configured correctly. Simple `cat /etc/resolv.conf` doesn't show the full picture on modern Ubuntu.
 
-### Challenge 6: Chocolatey Command Syntax Change
+### Challenge 4: Chocolatey Command Syntax Change
 
 **Problem:**
 Tried to verify Chocolatey packages with `choco list --local-only` but received error: "Invalid argument --local-only. This argument has been removed."
@@ -1002,39 +834,23 @@ Tried to verify Chocolatey packages with `choco list --local-only` but received 
 Newer versions of Chocolatey deprecated the `--local-only` flag.
 
 **Solution:**
-```powershell
+```
 # New syntax
 choco list --localonly
 
 # Or just
 choco list
 ```
-Default behavior is to list local packages unless explicitly searching the repository.
+The default behavior is to list local packages unless explicitly searching the repository.
 
 **Learning:**
-Tools evolve. Commands that worked in tutorials or older documentation may be deprecated. Read error messages carefully - Chocolatey's error explicitly stated the flag was removed.
+Commands that worked in tutorials or older documentation may be deprecated. Read error messages carefully - Chocolatey's error explicitly stated the flag was removed.
 
 ## Conclusion
 
 ### Reflection
 
-This lab provided comprehensive experience in modern infrastructure automation across heterogeneous systems. The combination of bash scripting for initial system setup and Ansible for ongoing configuration management demonstrates how automation tools work together in the system administration lifecycle.
-
-**What Worked Well:**
-
-The linux-onboard.sh script exceeded expectations. Reducing system deployment from 30 minutes to 5 minutes represents a 6x efficiency gain, and the time savings scale linearly with the number of systems. The interactive Q&A approach made the script flexible enough to handle different configurations (DHCP vs static, optional secondary DNS) while remaining simple to use.
-
-Ansible's agentless architecture proved ideal for heterogeneous environments. The same control node managed Ubuntu and Rocky Linux systems identically, and Windows automation via SSH (instead of WinRM) provided a consistent management interface across all platforms.
-
-SSH key authentication with passphrases and SSH agent struck the right balance between security and usability. Passphrase-protected keys defend against key theft, while SSH agent eliminates the need to repeatedly enter passphrases during automation runs.
-
-**Challenges Overcome:**
-
-The most valuable troubleshooting experience came from firewall issues. Rocky Linux's firewalld, unlike Ubuntu's UFW, requires explicit configuration to allow service ports. This is a critical production consideration - services can appear to be running perfectly (process active, port listening) while being completely inaccessible due to firewall rules.
-
-Understanding systemd-resolved's DNS resolution chain on Ubuntu clarified why simple configuration changes sometimes don't take effect. Modern Ubuntu layers DNS resolution through systemd-resolved's stub resolver, and netplan must configure the upstream servers correctly for the entire chain to work.
-
-The experience switching between root and deployer users, and the resulting SSH key issues, reinforced that SSH keys are fundamentally user-specific. This is important for production environments where multiple administrators need access - each admin should have their own keys, not shared service account keys.
+This lab provided a comprehensive experience in modern infrastructure automation across heterogeneous systems. The combination of bash scripting for initial system setup and Ansible for ongoing configuration management demonstrates how automation tools work together in the system administration lifecycle.
 
 **Key Learnings:**
 
@@ -1045,68 +861,16 @@ Both the bash script and Ansible playbooks are self-documenting. There's no "tri
 Being able to re-run playbooks safely fundamentally changes how you approach automation. Instead of "one-shot" scripts that must be perfect the first time, you can iterate, test, and refine. Playbooks become health checks and remediation tools, not just deployment tools.
 
 **Automation compounds:**
-The linux-onboard.sh script saved 75 minutes across three systems. That's valuable. But the real value is the 100th system. Manual processes scale linearly (100 systems = 50 hours of work). Automation scales logarithmically (100 systems = 8 hours to run scripts + minimal debugging).
-
-### Real-World Applications
-
-**Configuration Management at Scale:**
-Ansible manages thousands of servers at companies like NASA, Verizon, and Cisco. The same principles from this lab (inventory organization, role-based playbooks, idempotent operations) apply at massive scale.
-
-**Cloud Infrastructure Automation:**
-Cloud providers (AWS, Azure, GCP) all support Ansible for infrastructure automation. The same playbooks that configured Apache on a VM can configure EC2 instances, Azure VMs, or GCP Compute instances.
-
-**Compliance and Security:**
-Automated configuration enforcement ensures systems maintain security baselines. Instead of quarterly manual audits, Ansible can run daily checks and automatically remediate drift.
-
-**Disaster Recovery:**
-Complete infrastructure definition in code enables rapid disaster recovery. New datacenter? Point Ansible at new VMs, run playbooks, infrastructure rebuilt in hours.
-
-**Development Environment Consistency:**
-"Works on my machine" problems disappear when developers use the same Ansible playbooks that deploy production. Dev, test, and prod environments become identical.
-
-### Future Exploration
-
-**Advanced Ansible:**
-- Ansible Vault for password encryption
-- Dynamic inventory from cloud APIs
-- Ansible Tower/AWX for web UI and RBAC
-- Custom modules for specialized tasks
-- Rolling deployments with serial execution
-
-**Container Orchestration:**
-- Using Ansible to deploy Kubernetes
-- Managing containerized applications
-- Integration with Docker Compose
-- CI/CD pipelines with Ansible
-
-**Windows Automation:**
-- DSC (Desired State Configuration) integration
-- Group Policy automation
-- Active Directory management
-- Advanced PowerShell remoting
-
-**Enhanced Scripting:**
-- Add logging to linux-onboard.sh
-- Email notifications on completion
-- Integration with monitoring systems
-- Multi-network support (different subnets)
-
-**Security Hardening:**
-- CIS benchmark compliance playbooks
-- Automated security patching
-- Certificate management
-- Secrets management with Vault
+The linux-onboard.sh script saved 75 minutes(ish) across three systems. That's valuable. But the real value is the 100th system. 
 
 ### Final Thoughts
 
-This lab demonstrated that automation isn't just about efficiency - it's about reliability, consistency, and sustainability. Manual processes are error-prone, don't scale, and aren't repeatable. Automated processes are consistent, scale efficiently, and are self-documenting.
-
-The most valuable skill developed wasn't learning specific Ansible modules or bash syntax. It was developing the mindset to ask "How can I automate this?" Every repetitive task, every manual configuration, every "documentation step" is an opportunity for automation.
+This lab demonstrated that automation isn't just about efficiency. It's about reliability, consistency, and sustainability. Manual processes are error-prone, don't scale, and aren't repeatable. Automated processes are consistent, scale efficiently, and are self-documenting.
 
 Infrastructure as Code represents a fundamental shift in system administration. Instead of configuring systems, we write code that configures systems. Instead of documenting procedures, we write code that implements procedures. Instead of hoping for consistency, we enforce consistency through automation.
 
 **Current Infrastructure:**
-- Three Linux systems configured identically via automation script
+- Three Linux systems configured identically via an automation script
 - Ansible control node managing five systems (3 Linux, 2 Windows)
 - All configurations version-controlled in GitHub
 - Playbooks for service deployment, software management, and configuration
@@ -1121,7 +885,3 @@ Infrastructure as Code represents a fundamental shift in system administration. 
 - Troubleshooting firewall, DNS, and authentication issues
 - Infrastructure as Code principles
 - Idempotent configuration management
-
-The investment in automation infrastructure pays dividends immediately (75 minutes saved on three systems) and continues paying dividends forever (every future system deployed, every configuration change applied consistently, every disaster recovery scenario).
-
-This lab has transformed how I approach system administration tasks. The question is no longer "How do I configure this system?" but rather "How do I write code that configures this system - and every future system - correctly every time?"
