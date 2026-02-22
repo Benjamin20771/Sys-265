@@ -1,0 +1,6 @@
+---
+- name: Install Apache Name Server
+  hosts: ansible1-Ben.ben.local
+  become: true
+  roles:
+    - geerlingguy.apache

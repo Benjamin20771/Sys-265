@@ -1,0 +1,16 @@
+[linux]
+ansible1-Ben.ben.local
+ansible2-Ben.ben.local
+
+[webmin]
+ansible2-Ben.ben.local
+
+[windows]
+mgmt01-Ben.ben.local
+wks01-Ben.ben.local
+
+[windows:vars]
+ansible_user=ben.deyot-adm
+ansible_password='Pepper123!'
+ansible_connection=ssh
+ansible_shell_type=powershell
