@@ -13,7 +13,7 @@ The lab demonstrated Infrastructure as Code principles, agentless configuration 
 I created an interactive bash script that automates the entire onboarding process through a question-and-answer interface. 
 The script handles both Ubuntu and Rocky Linux distributions.
 
-**Link to script on GitHub:** [INSERT LINK HERE]
+**Link to script on GitHub:** (script) [https://github.com/Benjamin20771/Sys-265/blob/main/scripts/linux-onboard.sh]
 
 ### Script Features
 
