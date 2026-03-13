@@ -87,19 +87,20 @@
   tasks:
     # Create scheduled task for weekly disk cleanup
     - name: Create scheduled task for automated disk cleanup
-      ansible.windows.win_scheduled_task:
-        name: "Ansible_DiskCleanup"
-        description: "Weekly automated disk cleanup task created by Ansible"
+      community.windows.win_scheduled_task:
+        name: Ansible_DiskCleanup
+        description: Weekly automated disk cleanup task created by Ansible
         actions:
-          - path: cleanmgr.exe
-            arguments: /sagerun:1
+        - path: cleanmgr.exe
+          arguments: /sagerun:1
         triggers:
-          - type: weekly
-            days_of_week: sunday
-            start_boundary: "2024-01-01T03:00:00"
+        - type: weekly
+          days_of_week: sunday
+          start_boundary: '2024-01-01T03:00:00'
+        username: SYSTEM
         enabled: yes
         state: present
-      register: sched_task
+      register: sched_task   
       
     - name: Report scheduled task creation
       ansible.builtin.debug:
