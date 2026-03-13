@@ -58,7 +58,7 @@
     # Verify chrony is running
     - name: Ensure chrony service is started and enabled
       ansible.builtin.systemd:
-        name: chrony
+        name: chronyd
         state: started
         enabled: yes
       register: chrony_service
@@ -76,7 +76,7 @@
     # Handler to restart chrony when config changes
     - name: restart_chrony
       ansible.builtin.systemd:
-        name: chrony
+        name: chronyd
         state: restarted
 
 ################################################################################
