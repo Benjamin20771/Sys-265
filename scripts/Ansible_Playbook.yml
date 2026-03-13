@@ -41,10 +41,12 @@
     # Configure chrony to sync with AD01 domain controller
     - name: Configure chrony to use AD01 as time source
       ansible.builtin.lineinfile:
-        path: /etc/chrony.conf
-        regexp: '^pool'
+        path: /etc/chrony.d/ad01-source.conf
+        regexp: '^server AD01'
         line: 'server AD01.ben.local iburst'
+        create: yes
         backup: yes
+        mode: '0644'
       register: chrony_config
       notify: restart_chrony
       
