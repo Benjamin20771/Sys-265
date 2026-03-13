@@ -1,0 +1,336 @@
+---
+################################################################################
+# ANSIBLE SPRING BREAK FINAL PLAYBOOK
+# Selected 6 Elements for Assignment Submission
+#
+# Contains:
+#   - 2 System Administration tasks
+#   - 2 System Hardening tasks
+#   - 2 AD GPO Hardening tasks
+#
+# Usage: 
+#   Test first: ansible-playbook -i inventory final_playbook.yml --check
+#   Apply: ansible-playbook -i inventory final_playbook.yml
+#
+# Environment: 
+#   - Rocky Linux servers: ansible01, ansible02
+#   - Windows domain-joined: mgmt01, wks01
+################################################################################
+
+################################################################################
+# SYSTEM ADMINISTRATION - ELEMENT 1
+# Rocky Linux - Configure NTP with Domain Controller
+################################################################################
+
+- name: "SysAdmin 1 - Configure NTP Time Synchronization with Domain Controller"
+  hosts: rocky
+  become: yes
+  tasks:
+    # Install chrony for time synchronization
+    - name: Install chrony NTP client
+      ansible.builtin.dnf:
+        name: chrony
+        state: present
+      register: chrony_install
+      
+    - name: Report chrony installation
+      ansible.builtin.debug:
+        msg: "Chrony NTP client installed successfully"
+      when: chrony_install is changed
+
+    # Configure chrony to sync with AD01 domain controller
+    - name: Configure chrony to use AD01 as time source
+      ansible.builtin.lineinfile:
+        path: /etc/chrony.conf
+        regexp: '^pool'
+        line: 'server AD01.ben.local iburst'
+        backup: yes
+      register: chrony_config
+      notify: restart_chrony
+      
+    - name: Report NTP configuration
+      ansible.builtin.debug:
+        msg: "NTP configured to synchronize with AD01 domain controller"
+      when: chrony_config is changed
+    
+    # Verify chrony is running
+    - name: Ensure chrony service is started and enabled
+      ansible.builtin.systemd:
+        name: chronyd
+        state: started
+        enabled: yes
+      register: chrony_service
+      
+    - name: Verify time synchronization status
+      ansible.builtin.command: chronyc tracking
+      register: chrony_status
+      changed_when: false
+      
+    - name: Display time sync status
+      ansible.builtin.debug:
+        msg: "{{ chrony_status.stdout_lines }}"
+
+  handlers:
+    # Handler to restart chrony when config changes
+    - name: restart_chrony
+      ansible.builtin.systemd:
+        name: chronyd
+        state: restarted
+
+################################################################################
+# SYSTEM ADMINISTRATION - ELEMENT 2
+# Windows - Create Scheduled Task for System Maintenance
+################################################################################
+
+- name: "SysAdmin 2 - Create Automated Scheduled Task for Disk Cleanup"
+  hosts: windows
+  tasks:
+    # Create scheduled task for weekly disk cleanup
+    - name: Create scheduled task for automated disk cleanup
+      ansible.windows.win_scheduled_task:
+        name: "Ansible_DiskCleanup"
+        description: "Weekly automated disk cleanup task created by Ansible"
+        actions:
+          - path: cleanmgr.exe
+            arguments: /sagerun:1
+        triggers:
+          - type: weekly
+            days_of_week: sunday
+            start_boundary: "2024-01-01T03:00:00"
+        enabled: yes
+        state: present
+      register: sched_task
+      
+    - name: Report scheduled task creation
+      ansible.builtin.debug:
+        msg: "Scheduled task 'Ansible_DiskCleanup' created - runs every Sunday at 3:00 AM"
+      when: sched_task is changed
+    
+    # Verify the scheduled task exists
+    - name: Verify scheduled task was created
+      ansible.windows.win_shell: |
+        Get-ScheduledTask -TaskName "Ansible_DiskCleanup" | 
+        Select-Object TaskName, State, @{Name="NextRunTime";Expression={$_.NextRunTime}}
+      register: task_verify
+      changed_when: false
+      
+    - name: Display scheduled task details
+      ansible.builtin.debug:
+        msg: "{{ task_verify.stdout_lines }}"
+
+################################################################################
+# SYSTEM HARDENING - ELEMENT 1
+# Rocky Linux - Configure Firewalld with Strict Drop Zone
+################################################################################
+
+- name: "Hardening 1 - Configure Firewalld with Drop Zone (Zero-Trust)"
+  hosts: rocky
+  become: yes
+  tasks:
+    # Ensure firewalld is installed and running
+    - name: Enable and start firewalld service
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+      register: firewall_start
+      
+    - name: Report firewall service status
+      ansible.builtin.debug:
+        msg: "Firewalld service is running and enabled at boot"
+
+    # Set default zone to drop (most restrictive)
+    - name: Set firewalld default zone to drop (zero-trust)
+      ansible.posix.firewalld:
+        zone: drop
+        state: enabled
+        permanent: yes
+        immediate: yes
+      register: zone_config
+      
+    - name: Report drop zone configuration
+      ansible.builtin.debug:
+        msg: "Default firewall zone set to 'drop' - all traffic blocked by default"
+      when: zone_config is changed
+      
+    # Allow only SSH in the drop zone
+    - name: Allow SSH service in drop zone
+      ansible.posix.firewalld:
+        zone: drop
+        service: ssh
+        permanent: yes
+        immediate: yes
+        state: enabled
+      register: ssh_allow
+      
+    - name: Report SSH exception
+      ansible.builtin.debug:
+        msg: "SSH allowed in drop zone - all other traffic blocked"
+      when: ssh_allow is changed
+    
+    # Verify firewall configuration
+    - name: Display current firewall configuration
+      ansible.builtin.command: firewall-cmd --zone=drop --list-all
+      register: firewall_config
+      changed_when: false
+      
+    - name: Show firewall rules
+      ansible.builtin.debug:
+        msg: "{{ firewall_config.stdout_lines }}"
+
+################################################################################
+# SYSTEM HARDENING - ELEMENT 2
+# Rocky Linux - Enforce Strong Password Complexity
+################################################################################
+
+- name: "Hardening 2 - Enforce Strong Password Complexity Requirements"
+  hosts: rocky
+  become: yes
+  tasks:
+    # Install password quality checking library
+    - name: Install libpwquality for password complexity
+      ansible.builtin.dnf:
+        name: libpwquality
+        state: present
+      register: pwquality_install
+      
+    - name: Report libpwquality installation
+      ansible.builtin.debug:
+        msg: "Password quality library installed"
+      when: pwquality_install is changed
+
+    # Configure password complexity requirements
+    - name: Configure password complexity rules
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        backup: yes
+      loop:
+        - { regexp: '^minlen', line: 'minlen = 10' }
+        - { regexp: '^dcredit', line: 'dcredit = -1' }
+        - { regexp: '^ucredit', line: 'ucredit = -1' }
+        - { regexp: '^lcredit', line: 'lcredit = -1' }
+      register: pwquality_config
+      
+    - name: Report password complexity configuration
+      ansible.builtin.debug:
+        msg: "Password complexity enforced - minimum 10 characters, requires uppercase, lowercase, and digit"
+      when: pwquality_config is changed
+    
+    # Verify password quality settings
+    - name: Display current password quality settings
+      ansible.builtin.command: cat /etc/security/pwquality.conf
+      register: pwquality_display
+      changed_when: false
+      
+    - name: Show password complexity rules
+      ansible.builtin.debug:
+        msg: "{{ pwquality_display.stdout_lines }}"
+
+################################################################################
+# AD GPO HARDENING - ELEMENT 1
+# Windows - Disable LM Hash Storage (Security Vulnerability)
+################################################################################
+
+- name: "GPO Hardening 1 - Disable LM Hash Storage via Registry"
+  hosts: windows
+  tasks:
+    # Disable LM hash storage to prevent weak password hashing
+    # This is equivalent to the GPO: Computer Configuration > Windows Settings > 
+    # Security Settings > Local Policies > Security Options > 
+    # "Network security: Do not store LAN Manager hash value on next password change"
+    
+    - name: GPO - Prevent LM hash storage (prevents weak password hashing)
+      ansible.windows.win_regedit:
+        path: HKLM:\System\CurrentControlSet\Control\Lsa
+        name: NoLMHash
+        data: 1
+        type: dword
+      register: lm_hash
+      
+    - name: Report LM hash storage policy
+      ansible.builtin.debug:
+        msg: "LM hash storage disabled - prevents storage of weak LAN Manager password hashes"
+      when: lm_hash is changed
+    
+    # Verify the registry setting
+    - name: Verify NoLMHash registry setting
+      ansible.windows.win_shell: |
+        Get-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Lsa" -Name NoLMHash | 
+        Select-Object NoLMHash
+      register: lm_verify
+      changed_when: false
+      
+    - name: Display LM hash policy status
+      ansible.builtin.debug:
+        msg: "{{ lm_verify.stdout_lines }}"
+
+################################################################################
+# AD GPO HARDENING - ELEMENT 2
+# Windows - Require LDAP Client Signing (Prevent MITM Attacks)
+################################################################################
+
+- name: "GPO Hardening 2 - Require LDAP Client Signing via Registry"
+  hosts: windows
+  tasks:
+    # Enable LDAP client signing to prevent man-in-the-middle attacks
+    # This is equivalent to the GPO: Computer Configuration > Windows Settings > 
+    # Security Settings > Local Policies > Security Options > 
+    # "Network security: LDAP client signing requirements"
+    
+    - name: GPO - Require LDAP client signing (prevents man-in-the-middle attacks)
+      ansible.windows.win_regedit:
+        path: HKLM:\System\CurrentControlSet\Services\LDAP
+        name: LDAPClientIntegrity
+        data: 1
+        type: dword
+      register: ldap_signing
+      
+    - name: Report LDAP client signing policy
+      ansible.builtin.debug:
+        msg: "LDAP client signing required - protects against man-in-the-middle attacks on LDAP traffic"
+      when: ldap_signing is changed
+    
+    # Verify the registry setting
+    - name: Verify LDAPClientIntegrity registry setting
+      ansible.windows.win_shell: |
+        Get-ItemProperty -Path "HKLM:\System\CurrentControlSet\Services\LDAP" -Name LDAPClientIntegrity | 
+        Select-Object LDAPClientIntegrity
+      register: ldap_verify
+      changed_when: false
+      
+    - name: Display LDAP signing policy status
+      ansible.builtin.debug:
+        msg: "{{ ldap_verify.stdout_lines }}"
+
+################################################################################
+# COMPLETION MESSAGE
+################################################################################
+
+- name: "Playbook Execution Complete"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg: |
+          ╔════════════════════════════════════════════════════════════╗
+          ║                                                            ║
+          ║        ✅ ALL 6 ELEMENTS COMPLETED SUCCESSFULLY ✅         ║
+          ║                                                            ║
+          ║   System Administration (2):                               ║
+          ║   ✓ Rocky NTP configuration with AD01                     ║
+          ║   ✓ Windows scheduled task for disk cleanup               ║
+          ║                                                            ║
+          ║   System Hardening (2):                                    ║
+          ║   ✓ Rocky firewalld drop zone configuration               ║
+          ║   ✓ Rocky password complexity requirements                ║
+          ║                                                            ║
+          ║   AD GPO Hardening (2):                                    ║
+          ║   ✓ Windows LM hash storage disabled                      ║
+          ║   ✓ Windows LDAP client signing required                  ║
+          ║                                                            ║
+          ║   Screenshots ready for deliverables 02-07! 📸            ║
+          ║                                                            ║
+          ╚════════════════════════════════════════════════════════════╝
