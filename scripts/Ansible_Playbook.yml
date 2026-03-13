@@ -29,7 +29,7 @@
     # Install chrony for time synchronization
     - name: Install chrony NTP client
       ansible.builtin.dnf:
-        name: chrony
+        name: chronyd
         state: present
       register: chrony_install
       
