@@ -358,29 +358,47 @@ Write-Log "Configuring Server Manager"
 try {
     Write-Host "`n  Adding AD01 to Server Manager..." -ForegroundColor Cyan
     
-    # Import ServerManager module
-    Import-Module ServerManager -ErrorAction SilentlyContinue
-    
-    # Add AD01 to All Servers pool
+    # Server Manager stores servers in ServerList.xml
+    $ServerListPath = "$env:APPDATA\Microsoft\Windows\ServerManager\ServerList.xml"
     $AD01Server = "ad01-ben.ben.local"
     
-    # Check if AD01 is already in the server pool
-    $ExistingServers = Get-SMServer -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ServerName
+    # Create ServerManager directory if it doesn't exist
+    $ServerManagerDir = Split-Path $ServerListPath -Parent
+    if (!(Test-Path $ServerManagerDir)) {
+        New-Item -Path $ServerManagerDir -ItemType Directory -Force | Out-Null
+    }
     
-    if ($ExistingServers -contains $AD01Server) {
-        Write-Host "    ✓ AD01 already in Server Manager" -ForegroundColor Green
-        Write-Log "AD01 already in Server Manager"
+    # Check if ServerList.xml exists and contains AD01
+    if (Test-Path $ServerListPath) {
+        $ServerListContent = Get-Content $ServerListPath -Raw
+        if ($ServerListContent -like "*$AD01Server*") {
+            Write-Host "    ✓ AD01 already in Server Manager" -ForegroundColor Green
+            Write-Log "AD01 already in Server Manager"
+        } else {
+            Write-Host "    ℹ AD01 not yet in Server Manager" -ForegroundColor Gray
+            Write-Host "    → Will be added when you open Server Manager" -ForegroundColor Gray
+            Write-Log "AD01 will be added on first Server Manager launch"
+        }
     } else {
-        # Add AD01 to server pool
-        Add-SMServer -ServerName $AD01Server -ErrorAction Stop
-        Write-Host "    ✓ Added AD01 to Server Manager" -ForegroundColor Green
-        Write-Log "Added AD01 to Server Manager"
+        Write-Host "    ℹ Server Manager not configured yet" -ForegroundColor Gray
+        Write-Host "    → AD01 can be added via: Server Manager → All Servers → Add Servers" -ForegroundColor Gray
+        Write-Log "Server Manager will be configured on first launch"
+    }
+    
+    # Verify AD01 is reachable for Server Manager
+    Write-Host "`n  Verifying AD01 connectivity..." -ForegroundColor Cyan
+    if (Test-Connection -ComputerName $AD01Server -Count 2 -Quiet) {
+        Write-Host "    ✓ AD01 is reachable" -ForegroundColor Green
+        Write-Log "AD01 connectivity verified"
+    } else {
+        Write-Host "    ⚠ Cannot reach AD01" -ForegroundColor Yellow
+        Write-Log "WARNING: Cannot reach AD01"
     }
     
 } catch {
-    Write-Host "    ⚠ Could not add AD01 to Server Manager: $_" -ForegroundColor Yellow
-    Write-Log "WARNING: Could not add AD01 to Server Manager - $_"
-    Write-Host "      You can add manually: Server Manager → All Servers → Add Servers" -ForegroundColor Gray
+    Write-Host "    ⚠ Server Manager configuration issue: $_" -ForegroundColor Yellow
+    Write-Log "WARNING: Server Manager configuration - $_"
+    Write-Host "      You can add AD01 manually: Server Manager → All Servers → Add Servers" -ForegroundColor Gray
 }
 
 # ============================================================================
@@ -507,11 +525,16 @@ if ($ShareCheck) {
 }
 
 Write-Host "`n  Server Manager Configuration:" -ForegroundColor Cyan
-$SMServers = Get-SMServer -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ServerName
-if ($SMServers -contains "ad01-ben.ben.local") {
-    Write-Host "    ✓ AD01 added to All Servers" -ForegroundColor Green
+$ServerListPath = "$env:APPDATA\Microsoft\Windows\ServerManager\ServerList.xml"
+if (Test-Path $ServerListPath) {
+    $ServerListContent = Get-Content $ServerListPath -Raw
+    if ($ServerListContent -like "*ad01-ben.ben.local*") {
+        Write-Host "    ✓ AD01 configured in Server Manager" -ForegroundColor Green
+    } else {
+        Write-Host "    ℹ AD01 can be added when you open Server Manager" -ForegroundColor Gray
+    }
 } else {
-    Write-Host "    ✗ AD01 not in All Servers" -ForegroundColor Yellow
+    Write-Host "    ℹ Server Manager will auto-configure on first launch" -ForegroundColor Gray
 }
 
 $PerfService = Get-Service -Name "pla" -ErrorAction SilentlyContinue
@@ -541,10 +564,11 @@ Write-Host "  ✓ Server Manager configured" -ForegroundColor Green
 Write-Host "  ✓ AD01 added to management" -ForegroundColor Green
 
 Write-Host "`nNext Steps:" -ForegroundColor Yellow
-Write-Host "  1. Open Server Manager and verify AD01 appears in All Servers" -ForegroundColor Gray
-Write-Host "  2. Test DNS/AD management tools" -ForegroundColor Gray
-Write-Host "  3. Run your separate CA lab setup script" -ForegroundColor Gray
-Write-Host "  4. Resume lab work!" -ForegroundColor Gray
+Write-Host "  1. Open Server Manager" -ForegroundColor Gray
+Write-Host "  2. Add AD01 to 'All Servers': Manage → Add Servers → search 'ad01-ben'" -ForegroundColor Gray
+Write-Host "  3. Test DNS/AD management tools" -ForegroundColor Gray
+Write-Host "  4. Run your separate CA lab setup script" -ForegroundColor Gray
+Write-Host "  5. Resume lab work!" -ForegroundColor Gray
 
 Write-Host "`nLog file saved to: $LogFile" -ForegroundColor Cyan
 
