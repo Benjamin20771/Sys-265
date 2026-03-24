@@ -20,7 +20,7 @@
 #>
 
 # Configuration Variables
-$ComputerName = "MGMT01-Ben"
+$ComputerName = "MGMT01-BenD"
 $IPAddress = "10.0.5.10"
 $SubnetMask = "24"
 $Gateway = "10.0.5.2"
