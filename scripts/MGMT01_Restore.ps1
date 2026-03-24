@@ -349,10 +349,114 @@ try {
 }
 
 # ============================================================================
-# STEP 8: VERIFY CONFIGURATION
+# STEP 8: CONFIGURE SERVER MANAGER
 # ============================================================================
 
-Write-Host "`n[STEP 8] Verifying Configuration..." -ForegroundColor Yellow
+Write-Host "`n[STEP 8] Configuring Server Manager..." -ForegroundColor Yellow
+Write-Log "Configuring Server Manager"
+
+try {
+    Write-Host "`n  Adding AD01 to Server Manager..." -ForegroundColor Cyan
+    
+    # Import ServerManager module
+    Import-Module ServerManager -ErrorAction SilentlyContinue
+    
+    # Add AD01 to All Servers pool
+    $AD01Server = "ad01-ben.ben.local"
+    
+    # Check if AD01 is already in the server pool
+    $ExistingServers = Get-SMServer -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ServerName
+    
+    if ($ExistingServers -contains $AD01Server) {
+        Write-Host "    ✓ AD01 already in Server Manager" -ForegroundColor Green
+        Write-Log "AD01 already in Server Manager"
+    } else {
+        # Add AD01 to server pool
+        Add-SMServer -ServerName $AD01Server -ErrorAction Stop
+        Write-Host "    ✓ Added AD01 to Server Manager" -ForegroundColor Green
+        Write-Log "Added AD01 to Server Manager"
+    }
+    
+} catch {
+    Write-Host "    ⚠ Could not add AD01 to Server Manager: $_" -ForegroundColor Yellow
+    Write-Log "WARNING: Could not add AD01 to Server Manager - $_"
+    Write-Host "      You can add manually: Server Manager → All Servers → Add Servers" -ForegroundColor Gray
+}
+
+# ============================================================================
+# STEP 8B: START PERFORMANCE COUNTERS
+# ============================================================================
+
+Write-Host "`n  Starting Performance Counters..." -ForegroundColor Cyan
+Write-Log "Starting performance counters"
+
+try {
+    # Start Performance Logs and Alerts service
+    $PerfService = Get-Service -Name "pla" -ErrorAction SilentlyContinue
+    
+    if ($PerfService.Status -ne "Running") {
+        Start-Service -Name "pla"
+        Set-Service -Name "pla" -StartupType Automatic
+        Write-Host "    ✓ Performance counters started" -ForegroundColor Green
+        Write-Log "Performance counters started"
+    } else {
+        Write-Host "    ✓ Performance counters already running" -ForegroundColor Green
+    }
+    
+} catch {
+    Write-Host "    ⚠ Could not start performance counters: $_" -ForegroundColor Yellow
+    Write-Log "WARNING: Performance counters issue - $_"
+}
+
+# ============================================================================
+# STEP 8C: CONFIGURE REMOTE MANAGEMENT FOR AD01
+# ============================================================================
+
+Write-Host "`n  Configuring Remote Management..." -ForegroundColor Cyan
+Write-Log "Configuring remote management"
+
+try {
+    # Enable WinRM on local machine
+    Enable-PSRemoting -Force -SkipNetworkProfileCheck -ErrorAction SilentlyContinue | Out-Null
+    
+    # Add AD01 to trusted hosts (for non-Kerberos scenarios)
+    $TrustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
+    
+    if ($TrustedHosts -notlike "*ad01-ben*") {
+        if ([string]::IsNullOrEmpty($TrustedHosts)) {
+            Set-Item WSMan:\localhost\Client\TrustedHosts -Value "ad01-ben.ben.local" -Force
+        } else {
+            Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$TrustedHosts,ad01-ben.ben.local" -Force
+        }
+        Write-Host "    ✓ Added AD01 to trusted hosts" -ForegroundColor Green
+        Write-Log "Added AD01 to trusted hosts"
+    } else {
+        Write-Host "    ✓ AD01 already in trusted hosts" -ForegroundColor Green
+    }
+    
+    # Test remote management to AD01
+    Write-Host "`n  Testing remote connection to AD01..." -ForegroundColor Cyan
+    
+    $TestConnection = Test-WSMan -ComputerName "ad01-ben.ben.local" -ErrorAction SilentlyContinue
+    
+    if ($TestConnection) {
+        Write-Host "    ✓ Remote management to AD01 working" -ForegroundColor Green
+        Write-Log "Remote management to AD01 verified"
+    } else {
+        Write-Host "    ⚠ Cannot connect to AD01 remotely (may need to configure on AD01)" -ForegroundColor Yellow
+        Write-Log "WARNING: Remote connection to AD01 not verified"
+    }
+    
+} catch {
+    Write-Host "    ⚠ Remote management configuration issue: $_" -ForegroundColor Yellow
+    Write-Log "WARNING: Remote management configuration - $_"
+}
+
+# ============================================================================
+# STEP 9: VERIFY CONFIGURATION
+# ============================================================================
+
+Write-Host "`n[STEP 9] Verifying Configuration..." -ForegroundColor Yellow
 Write-Log "Running verification checks"
 
 Write-Host "`n  Network Configuration:" -ForegroundColor Cyan
@@ -402,6 +506,21 @@ if ($ShareCheck) {
     Write-Host "    ✗ Software share - MISSING" -ForegroundColor Red
 }
 
+Write-Host "`n  Server Manager Configuration:" -ForegroundColor Cyan
+$SMServers = Get-SMServer -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ServerName
+if ($SMServers -contains "ad01-ben.ben.local") {
+    Write-Host "    ✓ AD01 added to All Servers" -ForegroundColor Green
+} else {
+    Write-Host "    ✗ AD01 not in All Servers" -ForegroundColor Yellow
+}
+
+$PerfService = Get-Service -Name "pla" -ErrorAction SilentlyContinue
+if ($PerfService.Status -eq "Running") {
+    Write-Host "    ✓ Performance counters running" -ForegroundColor Green
+} else {
+    Write-Host "    ✗ Performance counters not started" -ForegroundColor Yellow
+}
+
 # ============================================================================
 # STEP 9: SUMMARY
 # ============================================================================
@@ -414,13 +533,18 @@ Write-Host "Summary:" -ForegroundColor Yellow
 Write-Host "  ✓ Network configured ($IPAddress)" -ForegroundColor Green
 Write-Host "  ✓ Joined to domain ($DomainName)" -ForegroundColor Green
 Write-Host "  ✓ Management tools installed" -ForegroundColor Green
+Write-Host "  ✓ PuTTY installed" -ForegroundColor Green
 Write-Host "  ✓ Directory structure created" -ForegroundColor Green
+Write-Host "  ✓ Software share created" -ForegroundColor Green
 Write-Host "  ✓ Firewall configured" -ForegroundColor Green
+Write-Host "  ✓ Server Manager configured" -ForegroundColor Green
+Write-Host "  ✓ AD01 added to management" -ForegroundColor Green
 
 Write-Host "`nNext Steps:" -ForegroundColor Yellow
-Write-Host "  1. Verify remote management from WKS01" -ForegroundColor Gray
-Write-Host "  2. Test DNS/AD tools" -ForegroundColor Gray
-Write-Host "  3. Resume lab work!" -ForegroundColor Gray
+Write-Host "  1. Open Server Manager and verify AD01 appears in All Servers" -ForegroundColor Gray
+Write-Host "  2. Test DNS/AD management tools" -ForegroundColor Gray
+Write-Host "  3. Run your separate CA lab setup script" -ForegroundColor Gray
+Write-Host "  4. Resume lab work!" -ForegroundColor Gray
 
 Write-Host "`nLog file saved to: $LogFile" -ForegroundColor Cyan
 
